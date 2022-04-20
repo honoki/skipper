@@ -38,7 +38,7 @@ type testAPI struct {
 	test      *testing.T
 	services  *serviceList
 	endpoints *endpointList
-	ingresses *definitions.IngressList
+	ingresses *definitions.IngressV1List
 	secrets   *secretList
 	server    *httptest.Server
 	failNext  bool
@@ -138,26 +138,28 @@ func testServiceWithTargetPort(namespace, name string, clusterIP string, ports m
 	}
 }
 
-func testPathRule(path, serviceName string, port definitions.BackendPort) *definitions.PathRule {
-	return &definitions.PathRule{
+func testPathRule(path, serviceName string, port definitions.BackendPortV1) *definitions.PathRuleV1 {
+	return &definitions.PathRuleV1{
 		Path: path,
-		Backend: &definitions.Backend{
-			ServiceName: serviceName,
-			ServicePort: port,
+		Backend: &definitions.BackendV1{
+			Service: definitions.Service{
+				Name: serviceName,
+				Port: port,
+			},
 		},
 	}
 }
 
-func testRule(host string, paths ...*definitions.PathRule) *definitions.Rule {
-	return &definitions.Rule{
+func testRule(host string, paths ...*definitions.PathRuleV1) *definitions.RuleV1 {
+	return &definitions.RuleV1{
 		Host: host,
-		Http: &definitions.HTTPRule{
+		Http: &definitions.HTTPRuleV1{
 			Paths: paths,
 		},
 	}
 }
 
-func setAnnotation(i *definitions.IngressItem, key, value string) {
+func setAnnotation(i *definitions.IngressV1Item, key, value string) {
 	if i.Metadata == nil {
 		i.Metadata = &definitions.Metadata{}
 	}
@@ -169,13 +171,15 @@ func setAnnotation(i *definitions.IngressItem, key, value string) {
 	i.Metadata.Annotations[key] = value
 }
 
-func testIngress(ns, name, defaultService, ratelimitCfg, filterString, predicateString, routesString, pathModeString, lbAlgorithm string, defaultPort definitions.BackendPort, traffic float64, rules ...*definitions.Rule) *definitions.IngressItem {
-	var defaultBackend *definitions.Backend
+func testIngress(ns, name, defaultService, ratelimitCfg, filterString, predicateString, routesString, pathModeString, lbAlgorithm string, defaultPort definitions.BackendPortV1, traffic float64, rules ...*definitions.RuleV1) *definitions.IngressV1Item {
+	var defaultBackend *definitions.BackendV1
 	if len(defaultService) != 0 {
-		defaultBackend = &definitions.Backend{
-			ServiceName: defaultService,
-			ServicePort: defaultPort,
-			Traffic:     traffic,
+		defaultBackend = &definitions.BackendV1{
+			Service: definitions.Service{
+				Name: defaultService,
+				Port: defaultPort,
+			},
+			Traffic: traffic,
 		}
 	}
 
@@ -184,9 +188,9 @@ func testIngress(ns, name, defaultService, ratelimitCfg, filterString, predicate
 		Name:        name,
 		Annotations: make(map[string]string),
 	}
-	i := &definitions.IngressItem{
+	i := &definitions.IngressV1Item{
 		Metadata: &meta,
-		Spec: &definitions.IngressSpec{
+		Spec: &definitions.IngressV1Spec{
 			DefaultBackend: defaultBackend,
 			Rules:          rules,
 		},
@@ -235,9 +239,9 @@ func testServices() *serviceList {
 	}
 }
 
-func testIngresses() []*definitions.IngressItem {
-	return []*definitions.IngressItem{
-		testIngress("namespace1", "default-only", "service1", "", "", "", "", "", "", definitions.BackendPort{Value: 8080}, 1.0),
+func testIngresses() []*definitions.IngressV1Item {
+	return []*definitions.IngressV1Item{
+		testIngress("namespace1", "default-only", "service1", "", "", "", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0),
 		testIngress(
 			"namespace2",
 			"path-rule-only",
@@ -248,11 +252,11 @@ func testIngresses() []*definitions.IngressItem {
 			"",
 			"",
 			"",
-			definitions.BackendPort{},
+			definitions.BackendPortV1{},
 			1.0,
 			testRule(
 				"www.example.org",
-				testPathRule("/", "service3", definitions.BackendPort{Value: "port3"}),
+				testPathRule("/", "service3", definitions.BackendPortV1{Name: "port3"}),
 			),
 		),
 		testIngress(
@@ -265,22 +269,22 @@ func testIngresses() []*definitions.IngressItem {
 			"",
 			"",
 			"",
-			definitions.BackendPort{Value: "port1"},
+			definitions.BackendPortV1{Name: "port1"},
 			1.0,
 			testRule(
 				"foo.example.org",
-				testPathRule("/test1", "service1", definitions.BackendPort{Value: "port1"}),
-				testPathRule("/test2", "service2", definitions.BackendPort{Value: "port2"}),
+				testPathRule("/test1", "service1", definitions.BackendPortV1{Name: "port1"}),
+				testPathRule("/test2", "service2", definitions.BackendPortV1{Name: "port2"}),
 			),
 			testRule(
 				"bar.example.org",
-				testPathRule("/test1", "service1", definitions.BackendPort{Value: "port1"}),
-				testPathRule("/test2", "service2", definitions.BackendPort{Value: "port2"}),
+				testPathRule("/test1", "service1", definitions.BackendPortV1{Name: "port1"}),
+				testPathRule("/test2", "service2", definitions.BackendPortV1{Name: "port2"}),
 			),
 		),
-		testIngress("namespace1", "ratelimit", "service1", "localRatelimit(20,\"1m\")", "", "", "", "", "", definitions.BackendPort{Value: 8080}, 1.0),
-		testIngress("namespace1", "ratelimitAndBreaker", "service1", "", "localRatelimit(20,\"1m\") -> consecutiveBreaker(15)", "", "", "", "", definitions.BackendPort{Value: 8080}, 1.0),
-		testIngress("namespace2", "svcwith2ports", "service4", "", "", "", "", "", "", definitions.BackendPort{Value: 4444}, 1.0),
+		testIngress("namespace1", "ratelimit", "service1", "localRatelimit(20,\"1m\")", "", "", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0),
+		testIngress("namespace1", "ratelimitAndBreaker", "service1", "", "localRatelimit(20,\"1m\") -> consecutiveBreaker(15)", "", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0),
+		testIngress("namespace2", "svcwith2ports", "service4", "", "", "", "", "", "", definitions.BackendPortV1{Number: 4444}, 1.0),
 	}
 }
 
@@ -357,11 +361,11 @@ func checkHealthcheck(t *testing.T, got []*eskip.Route, expected, reversed bool)
 	}
 }
 
-func newTestAPI(t *testing.T, s *serviceList, i *definitions.IngressList) *testAPI {
+func newTestAPI(t *testing.T, s *serviceList, i *definitions.IngressV1List) *testAPI {
 	return newTestAPIWithEndpoints(t, s, i, &endpointList{}, &secretList{})
 }
 
-func newTestAPIWithEndpoints(t *testing.T, s *serviceList, i *definitions.IngressList, e *endpointList, sec *secretList) *testAPI {
+func newTestAPIWithEndpoints(t *testing.T, s *serviceList, i *definitions.IngressV1List, e *endpointList, sec *secretList) *testAPI {
 	api := &testAPI{
 		test:      t,
 		services:  s,
@@ -392,7 +396,7 @@ func (api *testAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.URL.Path {
-	case IngressesClusterURI:
+	case IngressesV1ClusterURI:
 		if err := respondJSON(w, api.ingresses); err != nil {
 			api.test.Error(err)
 		}
@@ -425,13 +429,13 @@ func (api *testAPI) Close() {
 func TestIngressClassFilter(t *testing.T) {
 	tests := []struct {
 		testTitle     string
-		items         []*definitions.IngressItem
+		items         []*definitions.IngressV1Item
 		ingressClass  string
-		expectedItems []*definitions.IngressItem
+		expectedItems []*definitions.IngressV1Item
 	}{
 		{
 			testTitle: "filter no class ingresses",
-			items: []*definitions.IngressItem{
+			items: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 				}},
@@ -440,7 +444,7 @@ func TestIngressClassFilter(t *testing.T) {
 				}},
 			},
 			ingressClass: "^test-filter$",
-			expectedItems: []*definitions.IngressItem{
+			expectedItems: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 				}},
@@ -451,7 +455,7 @@ func TestIngressClassFilter(t *testing.T) {
 		},
 		{
 			testTitle: "filter specific key ingress",
-			items: []*definitions.IngressItem{
+			items: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 					Annotations: map[string]string{
@@ -466,7 +470,7 @@ func TestIngressClassFilter(t *testing.T) {
 				}},
 			},
 			ingressClass: "^test-filter$",
-			expectedItems: []*definitions.IngressItem{
+			expectedItems: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 				}},
@@ -474,7 +478,7 @@ func TestIngressClassFilter(t *testing.T) {
 		},
 		{
 			testTitle: "filter empty class ingresses",
-			items: []*definitions.IngressItem{
+			items: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 					Annotations: map[string]string{
@@ -489,7 +493,7 @@ func TestIngressClassFilter(t *testing.T) {
 				}},
 			},
 			ingressClass: "^test-filter$",
-			expectedItems: []*definitions.IngressItem{
+			expectedItems: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 				}},
@@ -497,7 +501,7 @@ func TestIngressClassFilter(t *testing.T) {
 		},
 		{
 			testTitle: "explicitly include any ingress class",
-			items: []*definitions.IngressItem{
+			items: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 					Annotations: map[string]string{
@@ -512,7 +516,7 @@ func TestIngressClassFilter(t *testing.T) {
 				}},
 			},
 			ingressClass: ".*",
-			expectedItems: []*definitions.IngressItem{
+			expectedItems: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 				}},
@@ -523,7 +527,7 @@ func TestIngressClassFilter(t *testing.T) {
 		},
 		{
 			testTitle: "match from a set of ingress classes",
-			items: []*definitions.IngressItem{
+			items: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 					Annotations: map[string]string{
@@ -538,7 +542,7 @@ func TestIngressClassFilter(t *testing.T) {
 				}},
 			},
 			ingressClass: "skipper-test",
-			expectedItems: []*definitions.IngressItem{
+			expectedItems: []*definitions.IngressV1Item{
 				{Metadata: &definitions.Metadata{
 					Name: "test1_valid1",
 				}},
@@ -558,7 +562,7 @@ func TestIngressClassFilter(t *testing.T) {
 				ingressClass: clsRx,
 			}
 
-			result := c.filterIngressesByClass(test.items)
+			result := c.filterIngressesV1ByClass(test.items)
 			lRes := len(result)
 			eRes := len(test.expectedItems)
 			// Check length
@@ -579,7 +583,7 @@ func TestIngressClassFilter(t *testing.T) {
 }
 
 func TestIngress(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("no services, no ingresses, load empty initial and update", func(t *testing.T) {
@@ -658,7 +662,7 @@ func TestIngress(t *testing.T) {
 		api.endpoints = testEndpointList()
 		api.services = testServices()
 		api.ingresses.Items = testIngresses()
-		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.ServicePort = definitions.BackendPort{Value: "not-existing"}
+		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.Service.Port.Name = "not-existing"
 		dc, err := New(Options{KubernetesURL: api.server.URL})
 		if err != nil {
 			t.Error(err)
@@ -732,8 +736,8 @@ func TestIngress(t *testing.T) {
 			return
 		}
 
-		api.ingresses.Items[0].Spec.DefaultBackend.ServicePort = definitions.BackendPort{Value: 6363}
-		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.ServicePort = definitions.BackendPort{Value: 9999}
+		api.ingresses.Items[0].Spec.DefaultBackend.Service.Port.Number = 6363
+		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.Service.Port.Number = 9999
 
 		r, d, err := dc.LoadUpdate()
 		if err != nil || len(d) != 0 {
@@ -763,8 +767,8 @@ func TestIngress(t *testing.T) {
 		}
 
 		// change service name and port of one prule will delete old route id and create a new
-		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.ServiceName = "service2"
-		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.ServicePort = definitions.BackendPort{Value: 8181}
+		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.Service.Name = "service2"
+		api.ingresses.Items[2].Spec.Rules[0].Http.Paths[0].Backend.Service.Port.Number = 8181
 
 		r, d, err := dc.LoadUpdate()
 		if err != nil || len(d) != 1 {
@@ -918,11 +922,11 @@ func TestIngress(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 			testIngress(
@@ -935,11 +939,11 @@ func TestIngress(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new2.example.org",
-					testPathRule("/", "service2", definitions.BackendPort{Value: "port2"}),
+					testPathRule("/", "service2", definitions.BackendPortV1{Name: "port2"}),
 				),
 			),
 		)
@@ -985,11 +989,11 @@ func TestIngress(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 			testIngress(
@@ -1002,16 +1006,16 @@ func TestIngress(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new2.example.org",
-					testPathRule("/", "service2", definitions.BackendPort{Value: "port2"}),
+					testPathRule("/", "service2", definitions.BackendPortV1{Name: "port2"}),
 				),
 			),
 		)
 
-		api.ingresses.Items[1].Spec.Rules[0].Http.Paths[0].Backend.ServicePort = definitions.BackendPort{Value: 9999}
+		api.ingresses.Items[1].Spec.Rules[0].Http.Paths[0].Backend.Service.Port.Number = 9999
 		api.ingresses.Items[2].Spec.Rules = api.ingresses.Items[2].Spec.Rules[:1]
 
 		r, d, err := dc.LoadUpdate()
@@ -1061,11 +1065,11 @@ func TestIngress(t *testing.T) {
 			"",
 			"",
 			"",
-			definitions.BackendPort{Value: ""},
+			definitions.BackendPortV1{Name: ""},
 			1.0,
 			testRule(
 				"new1.example.org",
-				testPathRule("/", "service1", definitions.BackendPort{Value: "port1"}),
+				testPathRule("/", "service1", definitions.BackendPortV1{Name: "port1"}),
 			),
 		)
 		ti2 := testIngress(
@@ -1078,11 +1082,11 @@ func TestIngress(t *testing.T) {
 			"",
 			"",
 			"",
-			definitions.BackendPort{Value: ""},
+			definitions.BackendPortV1{Name: ""},
 			1.0,
 			testRule(
 				"new2.example.org",
-				testPathRule("/", "service2", definitions.BackendPort{Value: "port2"}),
+				testPathRule("/", "service2", definitions.BackendPortV1{Name: "port2"}),
 			),
 		)
 		// Set class ingress class annotation
@@ -1103,7 +1107,7 @@ func TestIngress(t *testing.T) {
 }
 
 func TestConvertPathRule(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("has ingresses, receive two equal backends", func(t *testing.T) {
@@ -1136,11 +1140,11 @@ func TestConvertPathRule(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/test1", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/test1", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 			testIngress(
@@ -1153,11 +1157,11 @@ func TestConvertPathRule(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/test2", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/test2", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 		)
@@ -1176,7 +1180,7 @@ func TestConvertPathRule(t *testing.T) {
 }
 
 func TestConvertPathRuleEastWestEnabled(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 	t.Run("has one ingress, receive two backends pointing to the same backend", func(t *testing.T) {
 		api.endpoints = testEndpointList()
@@ -1211,11 +1215,11 @@ func TestConvertPathRuleEastWestEnabled(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/test1", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/test1", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 		)
@@ -1266,11 +1270,11 @@ func TestConvertPathRuleEastWestEnabled(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/test1", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/test1", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 			testIngress(
@@ -1283,11 +1287,11 @@ func TestConvertPathRuleEastWestEnabled(t *testing.T) {
 				"",
 				"",
 				"",
-				definitions.BackendPort{Value: ""},
+				definitions.BackendPortV1{Name: ""},
 				1.0,
 				testRule(
 					"new1.example.org",
-					testPathRule("/test2", "service1", definitions.BackendPort{Value: "port1"}),
+					testPathRule("/test2", "service1", definitions.BackendPortV1{Name: "port1"}),
 				),
 			),
 		)
@@ -1342,12 +1346,16 @@ func TestConvertPathRuleTraffic(t *testing.T) {
 		},
 		{
 			msg: "if traffic weight is 0, don't include traffic predicate",
-			rule: &definitions.PathRule{
+			rule: &definitions.PathRuleV1{
 				Path: "",
-				Backend: &definitions.Backend{
-					ServiceName: "service1",
-					ServicePort: definitions.BackendPort{Value: "port1"},
-					Traffic:     0.0,
+				Backend: &definitions.BackendV1{
+					Service: definitions.Service{
+						Name: "service1",
+						Port: definitions.BackendPortV1{
+							Name: "port1",
+						},
+					},
+					Traffic: 0.0,
 				},
 			},
 			route: &eskip.Route{
@@ -1357,12 +1365,16 @@ func TestConvertPathRuleTraffic(t *testing.T) {
 		},
 		{
 			msg: "if traffic weight is 1, don't include traffic predicate",
-			rule: &definitions.PathRule{
+			rule: &definitions.PathRuleV1{
 				Path: "",
-				Backend: &definitions.Backend{
-					ServiceName: "service1",
-					ServicePort: definitions.BackendPort{Value: "port1"},
-					Traffic:     1.0,
+				Backend: &definitions.BackendV1{
+					Service: definitions.Service{
+						Name: "service1",
+						Port: definitions.BackendPortV1{
+							Name: "port1",
+						},
+					},
+					Traffic: 1.0,
 				},
 			},
 			route: &eskip.Route{
@@ -1372,7 +1384,7 @@ func TestConvertPathRuleTraffic(t *testing.T) {
 		},
 	} {
 		t.Run(tc.msg, func(t *testing.T) {
-			api := newTestAPIWithEndpoints(t, testServices(), &definitions.IngressList{}, testEndpointList(), testSecrets())
+			api := newTestAPIWithEndpoints(t, testServices(), &definitions.IngressV1List{}, testEndpointList(), testSecrets())
 			defer api.Close()
 			dc, err := New(Options{KubernetesURL: api.server.URL})
 			if err != nil {
@@ -1390,7 +1402,7 @@ func TestConvertPathRuleTraffic(t *testing.T) {
 			state, err := dc.ClusterClient.fetchClusterState()
 			require.NoError(t, err)
 
-			route, err := convertPathRule(
+			route, err := convertPathRuleV1(
 				state,
 				&definitions.Metadata{Namespace: "namespace1"},
 				"",
@@ -1463,7 +1475,7 @@ func TestHealthcheckRoutes(t *testing.T) {
 }
 
 func TestHealthcheckInitial(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("no healthcheck, empty", func(t *testing.T) {
@@ -1580,7 +1592,7 @@ func TestHealthcheckInitial(t *testing.T) {
 }
 
 func TestHealthcheckUpdate(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("no healthcheck, update fail", func(t *testing.T) {
@@ -1689,7 +1701,7 @@ func TestHealthcheckUpdate(t *testing.T) {
 }
 
 func TestHealthcheckReload(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("no healthcheck, reload fail", func(t *testing.T) {
@@ -1897,7 +1909,7 @@ func TestScoping(t *testing.T) {
 	client := &clusterClient{}
 
 	client.setNamespace("test")
-	assert.Equal(t, "/apis/extensions/v1beta1/namespaces/test/ingresses", client.ingressesURI)
+	assert.Equal(t, "/apis/networking.k8s.io/v1/namespaces/test/ingresses", client.ingressesURI)
 	assert.Equal(t, "/api/v1/namespaces/test/services", client.servicesURI)
 	assert.Equal(t, "/api/v1/namespaces/test/endpoints", client.endpointsURI)
 }
@@ -1992,47 +2004,59 @@ func TestComputeBackendWeights(t *testing.T) {
 	for _, tc := range []struct {
 		msg     string
 		weights map[string]float64
-		input   *definitions.Rule
-		output  *definitions.Rule
+		input   *definitions.RuleV1
+		output  *definitions.RuleV1
 	}{
 		{
 			msg: `if only one backend has a weight, only one backend should get 100% traffic`,
 			weights: map[string]float64{
 				"foo": 59,
 			},
-			input: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			input: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
 							},
 						},
 					},
 				},
 			},
-			output: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			output: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
-								Traffic:     1.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
+								Traffic: 1.0,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
-								Traffic:     0.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
+								Traffic: 0.0,
 							},
 						},
 					},
@@ -2042,39 +2066,51 @@ func TestComputeBackendWeights(t *testing.T) {
 		{
 			msg:     `if two backends doesn't have any weight, they get equal amount of traffic.`,
 			weights: map[string]float64{},
-			input: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			input: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
 							},
 						},
 					},
 				},
 			},
-			output: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			output: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
-								Traffic:     0.5,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
+								Traffic: 0.5,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
-								Traffic:     1.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
+								Traffic: 1.0,
 							},
 						},
 					},
@@ -2088,53 +2124,71 @@ func TestComputeBackendWeights(t *testing.T) {
 				"bar": 60,
 				"baz": 20,
 			},
-			input: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			input: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "baz",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "baz",
+								},
 							},
 						},
 					},
 				},
 			},
-			output: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			output: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
-								Traffic:     0.2,
-								NoopCount:   1,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
+								Traffic:   0.2,
+								NoopCount: 1,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
-								Traffic:     0.75,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
+								Traffic: 0.75,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "baz",
-								Traffic:     1.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "baz",
+								},
+								Traffic: 1.0,
 							},
 						},
 					},
@@ -2149,66 +2203,90 @@ func TestComputeBackendWeights(t *testing.T) {
 				"baz": 3,
 				"qux": 27,
 			},
-			input: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			input: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "baz",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "baz",
+								},
 							},
 						}, {
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "qux",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "qux",
+								},
 							},
 						},
 					},
 				},
 			},
-			output: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			output: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
-								Traffic:     0.25,
-								NoopCount:   2,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
+								Traffic:   0.25,
+								NoopCount: 2,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
-								Traffic:     0.6,
-								NoopCount:   1,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
+								Traffic:   0.6,
+								NoopCount: 1,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "baz",
-								Traffic:     0.1,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "baz",
+								},
+								Traffic: 0.1,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "qux",
-								Traffic:     1.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "qux",
+								},
+								Traffic: 1.0,
 							},
 						},
 					},
@@ -2221,39 +2299,51 @@ func TestComputeBackendWeights(t *testing.T) {
 				"foo": 60,
 				"bar": 140,
 			},
-			input: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			input: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
 							},
 						},
 					},
 				},
 			},
-			output: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			output: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
-								Traffic:     0.3,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
+								Traffic: 0.3,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
-								Traffic:     1.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
+								Traffic: 1.0,
 							},
 						},
 					},
@@ -2266,51 +2356,69 @@ func TestComputeBackendWeights(t *testing.T) {
 				"foo": 30,
 				"bar": 70,
 			},
-			input: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			input: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "baz",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "baz",
+								},
 							},
 						},
 					},
 				},
 			},
-			output: &definitions.Rule{
-				Http: &definitions.HTTPRule{
-					Paths: []*definitions.PathRule{
+			output: &definitions.RuleV1{
+				Http: &definitions.HTTPRuleV1{
+					Paths: []*definitions.PathRuleV1{
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "foo",
-								Traffic:     0.3,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "foo",
+								},
+								Traffic: 0.3,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "bar",
-								Traffic:     1.0,
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "bar",
+								},
+								Traffic: 1.0,
 							},
 						},
 						{
-							Path: "",
-							Backend: &definitions.Backend{
-								ServiceName: "baz",
+							Path:     "",
+							PathType: "ImplementationSpecific",
+							Backend: &definitions.BackendV1{
+								Service: definitions.Service{
+									Name: "baz",
+								},
 							},
 						},
 					},
@@ -2319,7 +2427,7 @@ func TestComputeBackendWeights(t *testing.T) {
 		},
 	} {
 		t.Run(tc.msg, func(t *testing.T) {
-			computeBackendWeights(tc.weights, tc.input)
+			computeBackendWeightsV1(tc.weights, tc.input)
 			if !reflect.DeepEqual(tc.input, tc.output) {
 				t.Errorf("modified input and output should match")
 			}
@@ -2341,23 +2449,31 @@ func TestComputeBackendWeightMustHaveFallback(t *testing.T) {
 		}
 
 		weights := map[string]float64{"foo": float64(a), "bar": float64(b), "baz": float64(c), "quux": float64(d)}
-		fooBackend := &definitions.Backend{
-			ServiceName: "foo",
+		fooBackend := &definitions.BackendV1{
+			Service: definitions.Service{
+				Name: "foo",
+			},
 		}
-		barBackend := &definitions.Backend{
-			ServiceName: "bar",
+		barBackend := &definitions.BackendV1{
+			Service: definitions.Service{
+				Name: "bar",
+			},
 		}
-		bazBackend := &definitions.Backend{
-			ServiceName: "baz",
+		bazBackend := &definitions.BackendV1{
+			Service: definitions.Service{
+				Name: "baz",
+			},
 		}
-		quuxBackend := &definitions.Backend{
-			ServiceName: "quux",
+		quuxBackend := &definitions.BackendV1{
+			Service: definitions.Service{
+				Name: "quux",
+			},
 		}
-		allBackends := []*definitions.Backend{fooBackend, barBackend, bazBackend, quuxBackend}
+		allBackends := []*definitions.BackendV1{fooBackend, barBackend, bazBackend, quuxBackend}
 
-		input := &definitions.Rule{
-			Http: &definitions.HTTPRule{
-				Paths: []*definitions.PathRule{
+		input := &definitions.RuleV1{
+			Http: &definitions.HTTPRuleV1{
+				Paths: []*definitions.PathRuleV1{
 					{
 						Path:    "",
 						Backend: fooBackend,
@@ -2377,7 +2493,7 @@ func TestComputeBackendWeightMustHaveFallback(t *testing.T) {
 				},
 			},
 		}
-		computeBackendWeights(weights, input)
+		computeBackendWeightsV1(weights, input)
 
 		// check that there's one backend with weight of 1.0
 		for _, backend := range allBackends {
@@ -2394,7 +2510,7 @@ func TestComputeBackendWeightMustHaveFallback(t *testing.T) {
 }
 
 func TestRatelimits(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("check localratelimit", func(t *testing.T) {
@@ -2423,7 +2539,7 @@ func TestRatelimits(t *testing.T) {
 }
 
 func TestRatelimitsEastWest(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("check localratelimit", func(t *testing.T) {
@@ -2470,7 +2586,7 @@ func checkLocalRatelimit(t *testing.T, got []*eskip.Route, expected map[string]s
 }
 
 func TestSkipperFilter(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("check ingress filter", func(t *testing.T) {
@@ -2499,7 +2615,7 @@ func TestSkipperFilter(t *testing.T) {
 }
 
 func TestSkipperFilterEastWest(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("check ingress filter", func(t *testing.T) {
@@ -2546,10 +2662,10 @@ func checkSkipperFilter(t *testing.T, got []*eskip.Route, expected map[string][]
 }
 
 func TestSkipperPredicate(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
-	ingWithPredicate := testIngress("namespace1", "predicate", "service1", "", "", "QueryParam(\"query\", \"^example$\")", "", "", "", definitions.BackendPort{Value: 8080}, 1.0)
+	ingWithPredicate := testIngress("namespace1", "predicate", "service1", "", "", "QueryParam(\"query\", \"^example$\")", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0)
 
 	t.Run("check ingress predicate", func(t *testing.T) {
 		api.services = testServices()
@@ -2577,10 +2693,10 @@ func TestSkipperPredicate(t *testing.T) {
 }
 
 func TestSkipperPredicateEastWest(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
-	ingWithPredicate := testIngress("namespace1", "predicate", "service1", "", "", "QueryParam(\"query\", \"^example$\")", "", "", "", definitions.BackendPort{Value: 8080}, 1.0)
+	ingWithPredicate := testIngress("namespace1", "predicate", "service1", "", "", "QueryParam(\"query\", \"^example$\")", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0)
 
 	t.Run("check ingress predicate", func(t *testing.T) {
 		api.services = testServices()
@@ -2626,7 +2742,7 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		msg            string
 		endpoints      []*endpoint
 		services       []*service
-		ingresses      []*definitions.IngressItem
+		ingresses      []*definitions.IngressV1Item
 		secrets        []*secret
 		expectedRoutes map[string]string
 	}{{
@@ -2635,10 +2751,10 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		services: []*service{
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`Method("OPTIONS") -> <shunt>`,
-			"", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
+			"", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org_____bar": "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathRegexp(/^\\//) -> \"http://1.1.1.0:8181\"",
@@ -2650,10 +2766,10 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		services: []*service{
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`Method("OPTIONS") -> <shunt>`,
-			"", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/a/path", "bar", definitions.BackendPort{Value: "baz"})),
+			"", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/a/path", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org___a_path__bar": "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathRegexp(/^(\\/a\\/path)/) -> \"http://1.1.1.0:8181\"",
@@ -2666,11 +2782,11 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		services: []*service{
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`Method("OPTIONS") -> <shunt>`,
-			"", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
-			testRule("www2.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
+			"", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
+			testRule("www2.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org_____bar": "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathRegexp(/^\\//) -> \"http://1.1.1.0:8181\"",
@@ -2684,11 +2800,11 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		services: []*service{
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`Method("OPTIONS") -> <shunt>`,
-			"", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/a/path", "bar", definitions.BackendPort{Value: "baz"})),
-			testRule("www2.example.org", testPathRule("/another/path", "bar", definitions.BackendPort{Value: "baz"})),
+			"", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/a/path", "bar", definitions.BackendPortV1{Name: "baz"})),
+			testRule("www2.example.org", testPathRule("/another/path", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org___a_path__bar":       "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathRegexp(/^(\\/a\\/path)/) -> \"http://1.1.1.0:8181\"",
@@ -2706,14 +2822,14 @@ func TestSkipperCustomRoutes(t *testing.T) {
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 			testService("foo", "baz", "1.2.3.6", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`a: Method("OPTIONS") -> <shunt>;
                          b: Cookie("alpha", /^enabled$/) -> "http://1.1.2.0:8181";
                          c: Path("/a/path/somewhere") -> "https://some.other-url.org/a/path/somewhere";`,
-			"", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
-			testRule("www2.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
-			testRule("www3.example.org", testPathRule("/a/path", "bar", definitions.BackendPort{Value: "baz"})),
+			"", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
+			testRule("www2.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
+			testRule("www3.example.org", testPathRule("/a/path", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org_____bar":  "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathRegexp(/^\\//) -> \"http://1.1.1.0:8181\"",
@@ -2740,14 +2856,14 @@ func TestSkipperCustomRoutes(t *testing.T) {
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 			testService("foo", "baz", "1.2.3.6", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`a: Method("OPTIONS") -> <shunt>;
                          b: Cookie("alpha", /^enabled$/) -> "http://1.1.2.0:8181";
                          c: Path("/a/path/somewhere") -> "https://some.other-url.org/a/path/somewhere";`,
-			"", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("", "bar", definitions.BackendPort{Value: "baz"})),
-			testRule("www2.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
-			testRule("www3.example.org", testPathRule("/a/path", "bar", definitions.BackendPort{Value: "baz"})),
+			"", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("", "bar", definitions.BackendPortV1{Name: "baz"})),
+			testRule("www2.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
+			testRule("www3.example.org", testPathRule("/a/path", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org____bar":  "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) -> \"http://1.1.1.0:8181\"",
@@ -2772,10 +2888,10 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		services: []*service{
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`Method("OPTIONS") -> <shunt>`,
-			"path-prefix", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
+			"path-prefix", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org_____bar": "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathSubtree(\"/\") -> \"http://1.1.1.0:8181\"",
@@ -2787,17 +2903,17 @@ func TestSkipperCustomRoutes(t *testing.T) {
 		services: []*service{
 			testService("foo", "bar", "1.2.3.4", map[string]int{"baz": 8181}),
 		},
-		ingresses: []*definitions.IngressItem{testIngress("foo", "qux", "", "", "", "",
+		ingresses: []*definitions.IngressV1Item{testIngress("foo", "qux", "", "", "", "",
 			`Path("/foo") -> <shunt>`,
-			"path-prefix", "", definitions.BackendPort{}, 1.0,
-			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPort{Value: "baz"})),
+			"path-prefix", "", definitions.BackendPortV1{}, 1.0,
+			testRule("www1.example.org", testPathRule("/", "bar", definitions.BackendPortV1{Name: "baz"})),
 		)},
 		expectedRoutes: map[string]string{
 			"kube_foo__qux__www1_example_org_____bar": "Host(/^(www1[.]example[.]org[.]?(:[0-9]+)?)$/) && PathSubtree(\"/\") -> \"http://1.1.1.0:8181\"",
 		},
 	}} {
 		t.Run(ti.msg, func(t *testing.T) {
-			api := newTestAPIWithEndpoints(t, &serviceList{Items: ti.services}, &definitions.IngressList{Items: ti.ingresses}, &endpointList{
+			api := newTestAPIWithEndpoints(t, &serviceList{Items: ti.services}, &definitions.IngressV1List{Items: ti.ingresses}, &endpointList{
 				Items: ti.endpoints,
 			}, &secretList{Items: ti.secrets})
 			defer api.Close()
@@ -2978,7 +3094,7 @@ func TestCreateEastWestRouteOverwriteDomain(t *testing.T) {
 }
 
 func TestSkipperDefaultFilters(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("check routes are created if default filters dir is not set", func(t *testing.T) {
@@ -3008,9 +3124,9 @@ func TestSkipperDefaultFilters(t *testing.T) {
 
 	t.Run("check default filters are applied to the route", func(t *testing.T) {
 		api.services = &serviceList{Items: []*service{testService("namespace1", "service1", "1.2.3.4", map[string]int{"port1": 8080})}}
-		api.ingresses = &definitions.IngressList{Items: []*definitions.IngressItem{testIngress("namespace1", "default-only",
-			"service1", "", "", "", "", "", "", definitions.BackendPort{Value: 8080}, 1.0,
-			testRule("www.example.org", testPathRule("/", "service1", definitions.BackendPort{Value: 8080})))}}
+		api.ingresses = &definitions.IngressV1List{Items: []*definitions.IngressV1Item{testIngress("namespace1", "default-only",
+			"service1", "", "", "", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0,
+			testRule("www.example.org", testPathRule("/", "service1", definitions.BackendPortV1{Number: 8080})))}}
 
 		defaultFiltersDir, err := os.MkdirTemp("", "filters")
 		if err != nil {
@@ -3047,9 +3163,9 @@ func TestSkipperDefaultFilters(t *testing.T) {
 	t.Run("check default filters are prepended to the ingress filters", func(t *testing.T) {
 		api.endpoints = testEndpointList()
 		api.services = &serviceList{Items: []*service{testServiceWithTargetPort("namespace1", "service1", "1.2.3.4", map[string]int{"port1": 8080}, map[int]*definitions.BackendPort{8080: {Value: 8080}})}}
-		api.ingresses = &definitions.IngressList{Items: []*definitions.IngressItem{testIngress("namespace1", "default-only",
-			"service1", "", "localRatelimit(20,\"1m\")", "", "", "", "", definitions.BackendPort{Value: 8080}, 1.0,
-			testRule("www.example.org", testPathRule("/", "service1", definitions.BackendPort{Value: "port1"})))}}
+		api.ingresses = &definitions.IngressV1List{Items: []*definitions.IngressV1Item{testIngress("namespace1", "default-only",
+			"service1", "", "localRatelimit(20,\"1m\")", "", "", "", "", definitions.BackendPortV1{Number: 8080}, 1.0,
+			testRule("www.example.org", testPathRule("/", "service1", definitions.BackendPortV1{Name: "port1"})))}}
 
 		// store default configuration in the file
 		dir, err := os.MkdirTemp("", "filters")
@@ -3131,7 +3247,7 @@ func TestSkipperDefaultFilters(t *testing.T) {
 }
 
 func TestCertificateRegistry(t *testing.T) {
-	api := newTestAPI(t, nil, &definitions.IngressList{})
+	api := newTestAPI(t, nil, &definitions.IngressV1List{})
 	defer api.Close()
 
 	t.Run("certificate registry is enabled, secrets are loaded", func(t *testing.T) {
