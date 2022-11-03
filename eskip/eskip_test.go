@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sanity-io/litter"
+	"go.uber.org/goleak"
 )
 
 func checkItems(t *testing.T, message string, l, lenExpected int, checkItem func(int) bool) bool {
@@ -172,6 +173,8 @@ func TestParseRouteExpression(t *testing.T) {
 		false,
 	}} {
 		t.Run(ti.msg, func(t *testing.T) {
+			defer goleak.VerifyNone(t)
+
 			stringMapKeys := func(m map[string]string) []string {
 				keys := make([]string, 0, len(m))
 				for k := range m {
@@ -323,13 +326,17 @@ func TestParseFilters(t *testing.T) {
 		[]*Filter{{Name: "filter1", Args: []interface{}{3.14}}, {Name: "filter2", Args: []interface{}{"key", float64(42)}}},
 		false,
 	}} {
-		fs, err := ParseFilters(ti.expression)
-		if err == nil && ti.err || err != nil && !ti.err {
-			t.Error(ti.msg, "failure case", err, ti.err)
-			return
-		}
+		t.Run(ti.msg, func(t *testing.T) {
+			defer goleak.VerifyNone(t)
 
-		checkFilters(t, ti.msg, fs, ti.check)
+			fs, err := ParseFilters(ti.expression)
+			if err == nil && ti.err || err != nil && !ti.err {
+				t.Error(ti.msg, "failure case", err, ti.err)
+				return
+			}
+
+			checkFilters(t, ti.msg, fs, ti.check)
+		})
 	}
 }
 
@@ -362,6 +369,8 @@ func TestPredicateParsing(t *testing.T) {
 		input: `*`,
 	}} {
 		t.Run(test.title, func(t *testing.T) {
+			defer goleak.VerifyNone(t)
+
 			p, err := ParsePredicates(test.input)
 
 			if err == nil && test.fail {
@@ -382,6 +391,8 @@ func TestPredicateParsing(t *testing.T) {
 }
 
 func TestClone(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
 	r := &Route{
 		Id:            "foo",
 		Path:          "/bar",
@@ -493,6 +504,8 @@ func TestDefaultFiltersDo(t *testing.T) {
 			want:   outputPrependAppend2,
 		}} {
 		t.Run(tt.name, func(t *testing.T) {
+			defer goleak.VerifyNone(t)
+
 			if got := tt.df.Do(tt.routes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Want %v, got %v", tt.want, got)
 			}
@@ -502,6 +515,8 @@ func TestDefaultFiltersDo(t *testing.T) {
 }
 
 func TestDefaultFiltersDoCorrectPrependFilters(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
 	filters, err := ParseFilters("status(1) -> status(2) -> status(3)")
 	if err != nil {
 		t.Errorf("Failed to parse filter: %v", err)
@@ -622,6 +637,8 @@ func TestEditorPreProcessor(t *testing.T) {
 			want:   r1FilterChanged,
 		}} {
 		t.Run(tt.name, func(t *testing.T) {
+			defer goleak.VerifyNone(t)
+
 			r := CanonicalList(tt.routes)
 			want := CanonicalList(tt.want)
 			if got := tt.rep.Do(r); !reflect.DeepEqual(got, want) {
@@ -729,6 +746,8 @@ func TestClonePreProcessor(t *testing.T) {
 			want:   append(r1Filter, r1FilterChanged...),
 		}} {
 		t.Run(tt.name, func(t *testing.T) {
+			defer goleak.VerifyNone(t)
+
 			r := CanonicalList(tt.routes)
 			want := CanonicalList(tt.want)
 			if got := tt.rep.Do(r); !reflect.DeepEqual(got, want) {

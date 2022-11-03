@@ -29,6 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 
 	"github.com/zalando/skipper/dataclients/kubernetes/definitions"
 	"github.com/zalando/skipper/eskip"
@@ -645,6 +646,8 @@ func TestIngressClassFilter(t *testing.T) {
 }
 
 func TestIngress(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
 	api := newTestAPI(t, nil, &definitions.IngressList{})
 	defer api.Close()
 

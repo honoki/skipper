@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/zalando/skipper/dataclients/kubernetes/kubernetestest"
+	"go.uber.org/goleak"
 )
 
 func TestRouteGroupExamples(t *testing.T) {
@@ -19,6 +20,7 @@ func TestRouteGroupClusterState(t *testing.T) {
 }
 
 func TestRouteGroupTraffic(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	kubernetestest.FixturesToTest(t, "testdata/routegroups/traffic")
 }
 
@@ -27,6 +29,7 @@ func TestRouteGroupEastWest(t *testing.T) {
 }
 
 func TestRouteGroupEastWestRange(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	kubernetestest.FixturesToTest(t, "testdata/routegroups/east-west-range")
 }
 
@@ -35,14 +38,17 @@ func TestRouteGroupHTTPSRedirect(t *testing.T) {
 }
 
 func TestRouteGroupDefaultFilters(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	kubernetestest.FixturesToTest(t, "testdata/routegroups/default-filters")
 }
 
 func TestRouteGroupWithIngress(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	kubernetestest.FixturesToTest(t, "testdata/routegroups/with-ingress")
 }
 
 func TestRouteGroupTracingTag(t *testing.T) {
+	defer goleak.VerifyNone(t)
 	kubernetestest.FixturesToTest(t, "testdata/routegroups/tracing-tag")
 }
 

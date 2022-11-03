@@ -16,6 +16,8 @@ import (
 )
 
 func TestNoMultipleTreePredicates(t *testing.T) {
+	//defer goleak.VerifyNone(t)
+
 	for _, ti := range []struct {
 		routes string
 		err    bool
